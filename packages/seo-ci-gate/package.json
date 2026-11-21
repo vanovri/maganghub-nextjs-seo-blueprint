@@ -1,0 +1,14 @@
+{
+  "name": "@maganghub/seo-ci-gate",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Zero-dependency 8-gate Technical SEO, Google for Jobs JSON-LD, Expired Job Lifecycle, and GEO AI Feeds CI Validator",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "bin": {
+    "maganghub-seo-gate": "./scripts/validate-seo.mjs"
+  },
+  "dependencies": {}
+}

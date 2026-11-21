@@ -1,0 +1,177 @@
+{
+  "ok": false,
+  "timestamp": "2026-11-21T11:52:31.654Z",
+  "targetUrl": "https://maganghub.kemnaker.go.id",
+  "canonicalOrigin": "https://maganghub.kemnaker.go.id",
+  "mode": "production",
+  "counts": {
+    "PASS": 1,
+    "WARN": 2,
+    "FAIL": 5
+  },
+  "gates": [
+    {
+      "id": "G1-HOME-SSR",
+      "name": "Homepage SSR & Core Meta",
+      "status": "WARN",
+      "summary": "HTTP 200 | 500 SSR words | H1=\"Mulai Karirmu dari Magang Terbaik di sini.\" | 435ms",
+      "details": {
+        "status": 200,
+        "durationMs": 435,
+        "wordCount": 500,
+        "lang": "id",
+        "title": "Program Pemagangan Lulusan Perguruan Tinggi : Maganghub - Kemnaker RI",
+        "descriptionLength": 196,
+        "h1Count": 1,
+        "jsonLdTypes": [],
+        "errors": [],
+        "warnings": [
+          "<title> is 69 chars (>65 SERP guard)",
+          "Meta description is 196 chars (target 150-160)",
+          "Homepage has 0 JSON-LD blocks (recommended: GovernmentOrganization)"
+        ]
+      }
+    },
+    {
+      "id": "G2-INDEXING",
+      "name": "Indexing Safety & Preview Noindex Guard (production)",
+      "status": "PASS",
+      "summary": "mode=production | previewStrictMetaNoindex=false | x-robots-tag=\"none\"",
+      "details": {
+        "mode": "production",
+        "previewStrictNoindex": false,
+        "xRobotsTag": null,
+        "metaRobots": "index, follow",
+        "canonical": "https://maganghub.kemnaker.go.id",
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "id": "G3-ROBOTS",
+      "name": "robots.txt Crawlability",
+      "status": "FAIL",
+      "summary": "robots.txt contains only Cloudflare Content Signals comments and zero User-agent directives",
+      "details": {
+        "status": 200,
+        "durationMs": 187,
+        "errors": [
+          "robots.txt contains only Cloudflare Content Signals comments and zero User-agent directives",
+          "robots.txt is missing an absolute Sitemap: directive pointing to sitemap.xml"
+        ],
+        "ok": false,
+        "issues": [
+          "robots.txt contains only Cloudflare Content Signals comments and zero User-agent directives",
+          "robots.txt is missing an absolute Sitemap: directive pointing to sitemap.xml"
+        ],
+        "warnings": [],
+        "sitemaps": [],
+        "directiveCount": 0,
+        "hasUserAgent": false,
+        "hasCloudflareSignals": true
+      }
+    },
+    {
+      "id": "G4-SITEMAP",
+      "name": "sitemap.xml & Sitemapindex Discovery",
+      "status": "FAIL",
+      "summary": "/sitemap.xml returned HTTP 404 (expected 200)",
+      "details": {
+        "status": 404,
+        "kind": "unknown",
+        "contentType": "text/html; charset=utf-8",
+        "durationMs": 117,
+        "urlCount": 0,
+        "childSitemapsChecked": 0,
+        "sampleUrls": [],
+        "errors": [
+          "/sitemap.xml returned HTTP 404 (expected 200)"
+        ],
+        "warnings": []
+      }
+    },
+    {
+      "id": "G5-CANONICAL-ROOT-GUARD",
+      "name": "Inner-Route Self-Canonical Guard",
+      "status": "FAIL",
+      "summary": "BLOCKER #0 DETECTED: Inner route \"/magang-nasional/lowongan\" has <link rel=\"canonical\" href=\"https://maganghub.kemnaker.go.id\"> locked to root \"/\"",
+      "details": {
+        "auditedRoute": "/magang-nasional/lowongan",
+        "status": 200,
+        "canonical": "https://maganghub.kemnaker.go.id",
+        "canonicals": [
+          "https://maganghub.kemnaker.go.id"
+        ],
+        "title": "Program Pemagangan Lulusan Perguruan Tinggi : Maganghub - Kemnaker RI",
+        "errors": [
+          "BLOCKER #0 DETECTED: Inner route \"/magang-nasional/lowongan\" has <link rel=\"canonical\" href=\"https://maganghub.kemnaker.go.id\"> locked to root \"/\""
+        ],
+        "warnings": [
+          "Inner route \"/magang-nasional/lowongan\" shares identical <title> with homepage (\"Program Pemagangan Lulusan Perguruan Tinggi : Maganghub - Kemnaker RI\")"
+        ]
+      }
+    },
+    {
+      "id": "G6-JOBPOSTING-ACTIVE",
+      "name": "Active JobPosting JSON-LD",
+      "status": "FAIL",
+      "summary": "Could not resolve a sample job detail URL (sitemap.xml has 0 vacancy detail URLs and SAMPLE_JOB_PATH is unset).",
+      "details": {
+        "hint": "Publish /magang-nasional/lowongan/<slug> URLs in sitemap.xml or pass --sample-job."
+      }
+    },
+    {
+      "id": "G7-EXPIRED-JOB-LIFECYCLE",
+      "name": "Expired Job Lifecycle Guard",
+      "status": "WARN",
+      "summary": "Skipped: pass --expired-job (or EXPIRED_JOB_PATH) to enforce expired vacancy lifecycle gate.",
+      "details": {
+        "skipped": true,
+        "expiredJobMode": "any"
+      }
+    },
+    {
+      "id": "G8-LLMS-TXT-AND-AI-FEEDS",
+      "name": "GEO llms.txt & AI Feeds",
+      "status": "FAIL",
+      "summary": "HTTP 404 on /llms.txt (missing AI discovery manifesto)",
+      "details": {
+        "llmsTxt": {
+          "status": 404,
+          "durationMs": 136,
+          "ok": false
+        },
+        "jobsNdjson": {
+          "status": 404,
+          "ok": false
+        },
+        "faqJson": {
+          "status": 404,
+          "ok": false
+        },
+        "errors": [
+          "HTTP 404 on /llms.txt (missing AI discovery manifesto)"
+        ],
+        "warnings": [
+          "/ai/jobs.ndjson returned HTTP 404 (optional AI feed not yet deployed)",
+          "/ai/faq.json returned HTTP 404 (optional AI feed not yet deployed)"
+        ]
+      }
+    }
+  ],
+  "audit": {
+    "timestamp": "2026-11-21T11:52:31.654Z",
+    "deploymentSha": null,
+    "gateResults": {
+      "G1-HOME-SSR": "WARN",
+      "G2-INDEXING": "PASS",
+      "G3-ROBOTS": "FAIL",
+      "G4-SITEMAP": "FAIL",
+      "G5-CANONICAL-ROOT-GUARD": "FAIL",
+      "G6-JOBPOSTING-ACTIVE": "FAIL",
+      "G7-EXPIRED-JOB-LIFECYCLE": "WARN",
+      "G8-LLMS-TXT-AND-AI-FEEDS": "FAIL"
+    },
+    "reportSha256": "43c01ff5c2aa4b05547783b0e0f8f7867c2940abfb6623afd0e2b19717f6720a"
+  }
+}

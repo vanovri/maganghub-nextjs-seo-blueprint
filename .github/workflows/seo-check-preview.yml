@@ -1,0 +1,252 @@
+name: SEO & GEO CI Gate (Vercel Preview & Production)
+
+on:
+  deployment_status:
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: "Target HTTPS deployment URL (e.g. https://preview-xyz.vercel.app or https://maganghub.kemnaker.go.id)"
+        required: true
+        type: string
+        default: "https://maganghub.kemnaker.go.id"
+      mode:
+        description: "Validation mode (auto detects *.vercel.app as preview)"
+        required: false
+        type: choice
+        default: "auto"
+        options:
+          - auto
+          - preview
+          - production
+      sample_job_path:
+        description: "Optional active job detail path (leave blank to auto-detect from sitemap.xml)"
+        required: false
+        type: string
+        default: ""
+      expired_job_path:
+        description: "Optional expired job path for lifecycle gate (e.g. /magang-nasional/lowongan/expired-slug)"
+        required: false
+        type: string
+        default: ""
+      expired_job_mode:
+        description: "Expired job validation mode"
+        required: false
+        type: choice
+        default: "strip-schema"
+        options:
+          - any
+          - strip-schema
+          - "410"
+      audit_only:
+        description: "Report findings without failing exit code"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  statuses: write
+  pull-requests: write
+
+concurrency:
+  group: >-
+    seo-preview-${{ github.event_name == 'deployment_status'
+      && github.event.deployment.environment
+      || inputs.target_url }}
+  cancel-in-progress: true
+
+jobs:
+  validate-seo-preview:
+    name: Run 8-Gate SEO & GEO Validator
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event.deployment_status.state == 'success' &&
+        startsWith(github.event.deployment_status.environment, 'Preview') &&
+        github.event.deployment_status.environment_url != ''
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # SECURITY (Anti Fork-PR Pwn Request):
+      # Always sparse-checkout ONLY the validator script from the trusted default branch,
+      # NEVER from untrusted github.event.deployment.sha while secrets are in scope.
+      - name: Sparse-checkout trusted validator from default branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          sparse-checkout: |
+            packages/seo-ci-gate/scripts/validate-seo.mjs
+          persist-credentials: false
+
+      - name: Setup Node.js 24 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Validate target URL against strict HTTPS allowlist
+        id: target
+        env:
+          RAW_TARGET_URL: >-
+            ${{ github.event_name == 'deployment_status'
+              && github.event.deployment_status.environment_url
+              || inputs.target_url }}
+          SEO_MODE_INPUT: >-
+            ${{ github.event_name == 'deployment_status'
+              && 'preview'
+              || inputs.mode }}
+          CANONICAL_HOST: maganghub.kemnaker.go.id
+        run: |
+          set -euo pipefail
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const raw = (process.env.RAW_TARGET_URL || "").trim();
+            const canonicalHost = process.env.CANONICAL_HOST;
+            let u;
+            try {
+              u = new URL(raw);
+            } catch {
+              console.error("Invalid target URL:", raw);
+              process.exit(1);
+            }
+            if (u.protocol !== "https:") {
+              console.error("Only HTTPS targets are permitted in CI:", u.protocol);
+              process.exit(1);
+            }
+            const host = u.hostname.toLowerCase();
+            const isVercel = /^[a-z0-9-]+\.vercel\.app$/.test(host);
+            const isKemnaker = host === canonicalHost || host.endsWith("." + canonicalHost);
+            if (!isVercel && !isKemnaker) {
+              console.error("Blocked untrusted target host (SSRF / secret-leak guard):", host);
+              process.exit(1);
+            }
+            const cleanUrl = `${u.origin}${u.pathname.replace(/\/+$/, "")}`;
+            const modeInput = (process.env.SEO_MODE_INPUT || "").trim();
+            const resolvedMode = modeInput || (isVercel ? "preview" : "production");
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `url=${cleanUrl}\n`);
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `mode=${resolvedMode}\n`);
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `allow_bypass=${isVercel ? "true" : "false"}\n`);
+          '
+
+      - name: Run zero-dependency 8-gate SEO & GEO validator
+        id: seo
+        continue-on-error: true
+        env:
+          SEO_TEST_URL: ${{ steps.target.outputs.url }}
+          SEO_MODE: ${{ steps.target.outputs.mode }}
+          CANONICAL_ORIGIN: https://maganghub.kemnaker.go.id
+          SAMPLE_JOB_PATH: ${{ github.event_name == 'workflow_dispatch' && inputs.sample_job_path || '' }}
+          EXPIRED_JOB_PATH: ${{ github.event_name == 'workflow_dispatch' && inputs.expired_job_path || '' }}
+          EXPIRED_JOB_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.expired_job_mode || 'strip-schema' }}
+          PREVIEW_PLATFORM_NOINDEX: ${{ steps.target.outputs.allow_bypass }}
+          AUDIT_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.audit_only || 'false' }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: >-
+            ${{ steps.target.outputs.allow_bypass == 'true'
+              && secrets.VERCEL_AUTOMATION_BYPASS_SECRET
+              || '' }}
+        run: |
+          set -euo pipefail
+          ARGS=(--json-out seo-report.json --save-ssr ssr-snapshot.html)
+          if [ "$AUDIT_ONLY" = "true" ]; then
+            ARGS+=(--audit-only)
+          fi
+          node packages/seo-ci-gate/scripts/validate-seo.mjs "${ARGS[@]}"
+
+      - name: Upload SEO JSON report & SSR snapshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: seo-gate-report-${{ github.run_id }}
+          path: |
+            seo-report.json
+            ssr-snapshot.html
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: Report commit status to deployed SHA
+        if: always() && github.event_name == 'deployment_status'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEPLOY_SHA: ${{ github.event.deployment.sha }}
+          OUTCOME: ${{ steps.seo.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          STATE="failure"
+          DESC="8-gate SEO & GEO check failed; inspect Actions summary"
+          if [ "$OUTCOME" = "success" ]; then
+            STATE="success"
+            DESC="All 8 SEO, JobPosting JSON-LD & GEO checks passed"
+          fi
+          gh api \
+            --method POST \
+            "/repos/${GITHUB_REPOSITORY}/statuses/${DEPLOY_SHA}" \
+            -f state="$STATE" \
+            -f context="ci/seo-geo-8-gate" \
+            -f description="$DESC" \
+            -f target_url="$RUN_URL"
+
+      - name: Post or update sticky PR comment with 8-gate Markdown table
+        if: always() && github.event_name == 'deployment_status'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEPLOY_SHA: ${{ github.event.deployment.sha }}
+          PREVIEW_URL: ${{ steps.target.outputs.url }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          if [ ! -f seo-report.json ]; then
+            echo "No seo-report.json found; skipping sticky PR comment."
+            exit 0
+          fi
+
+          PR_NUMBER=$(gh api "/repos/${GITHUB_REPOSITORY}/commits/${DEPLOY_SHA}/pulls" --jq '.[0].number // empty' || true)
+          if [ -z "$PR_NUMBER" ]; then
+            echo "No pull request linked to commit ${DEPLOY_SHA}; skipping PR comment."
+            exit 0
+          fi
+
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const report = JSON.parse(fs.readFileSync("seo-report.json", "utf8"));
+            const marker = "<!-- maganghub-seo-ci-gate -->";
+            const statusLabel = report.ok ? "PASS" : "FAIL";
+            const rows = (report.gates || []).map((g) => {
+              const safeSummary = String(g.summary || "").replace(/\|/g, "\\|").replace(/\r?\n/g, " ");
+              return `| \`${g.id}\` | ${g.name} | **${g.status}** | ${safeSummary} |`;
+            });
+            const body = [
+              marker,
+              `### MagangHub SEO & GEO 8-Gate Report: **${statusLabel}**`,
+              "",
+              `- **Preview URL:** ${process.env.PREVIEW_URL}`,
+              `- **Commit SHA:** \`${(process.env.DEPLOY_SHA || "").slice(0, 12)}\``,
+              `- **Score:** \`${report.counts?.PASS ?? 0}\` pass | \`${report.counts?.WARN ?? 0}\` warn | \`${report.counts?.FAIL ?? 0}\` fail`,
+              `- **Workflow Run:** ${process.env.RUN_URL}`,
+              "",
+              "| Gate | Check | Status | Summary |",
+              "| :--- | :--- | :---: | :--- |",
+              ...rows,
+              "",
+            ].join("\n");
+            fs.writeFileSync("sticky-comment.md", body, "utf8");
+          '
+
+          EXISTING_ID=$(gh api "/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+            --jq '.[] | select(.body | contains("<!-- maganghub-seo-ci-gate -->")) | .id' | head -n 1 || true)
+
+          if [ -n "$EXISTING_ID" ]; then
+            gh api --method PATCH \
+              "/repos/${GITHUB_REPOSITORY}/issues/comments/${EXISTING_ID}" \
+              -F body=@sticky-comment.md > /dev/null
+            echo "Updated sticky PR comment #${EXISTING_ID} on PR #${PR_NUMBER}."
+          else
+            gh api --method POST \
+              "/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+              -F body=@sticky-comment.md > /dev/null
+            echo "Created sticky PR comment on PR #${PR_NUMBER}."
+          fi
+
+      - name: Fail job if SEO gate failed
+        if: steps.seo.outcome != 'success'
+        run: exit 1

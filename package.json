@@ -1,0 +1,36 @@
+{
+  "name": "maganghub-nextjs-seo-blueprint",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Canonical Next.js App Router SEO, Google for Jobs JSON-LD, Expired Job Guard, GEO AI Feeds, and Zero-Dependency CI Gate Monorepo for MagangHub Kemnaker RI",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test:blueprint": "node --test tests/nextjs-blueprint.test.mjs",
+    "test:e2e": "node --test tests/e2e-http.test.mjs",
+    "test:fuzz": "node --test tests/fuzz-parsers.test.mjs",
+    "test:workflows": "node --test tests/workflow-security.test.mjs",
+    "test:indexing": "node --test tests/indexing-api.test.mjs",
+    "test:stride": "node --test tests/stride-controls.test.mjs",
+    "test:hygiene": "node --test tests/hygiene.test.mjs",
+    "perf:stress": "node --expose-gc scripts/perf-stress.mjs",
+    "security:stride": "node scripts/stride-audit.mjs",
+    "test:all": "npm run typecheck && node --test tests/nextjs-blueprint.test.mjs tests/e2e-http.test.mjs tests/fuzz-parsers.test.mjs tests/workflow-security.test.mjs tests/indexing-api.test.mjs tests/stride-controls.test.mjs tests/hygiene.test.mjs",
+    "test:godmode": "npm run test:all && npm run perf:stress && npm run security:stride",
+    "validate:seo": "node packages/seo-ci-gate/scripts/validate-seo.mjs",
+    "validate:live": "node packages/seo-ci-gate/scripts/validate-seo.mjs --url https://maganghub.kemnaker.go.id --mode production --audit-only --json-out reports/live-baseline-canonical.json"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.8.2",
+    "yaml": "^2.7.0",
+    "zod": "^3.24.2"
+  }
+}

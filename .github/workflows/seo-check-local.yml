@@ -1,0 +1,113 @@
+name: SEO & GEO CI Gate (Local PR Build)
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      sample_job_path:
+        description: "Optional sample job detail path (leave empty to auto-detect from sitemap.xml)"
+        required: false
+        type: string
+        default: ""
+      expired_job_path:
+        description: "Optional expired job path to verify strip-schema or 410"
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: seo-local-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-seo-local:
+    name: Build & Validate Local Next.js Server
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js 24 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Next.js production bundle
+        run: npm run build
+
+      - name: Start Next.js server & run 8-gate SEO validator
+        env:
+          SEO_TEST_URL: http://127.0.0.1:3000
+          SEO_MODE: local
+          ALLOW_LOCALHOST: "true"
+          SAMPLE_JOB_PATH: ${{ github.event_name == 'workflow_dispatch' && inputs.sample_job_path || '' }}
+          EXPIRED_JOB_PATH: ${{ github.event_name == 'workflow_dispatch' && inputs.expired_job_path || '' }}
+        run: |
+          set -euo pipefail
+
+          LOG_FILE="/tmp/next-seo-server.log"
+          SERVER_PID=""
+
+          cleanup() {
+            EXIT_CODE=$?
+            if [ -n "$SERVER_PID" ] && kill -0 "$SERVER_PID" 2>/dev/null; then
+              kill "$SERVER_PID" 2>/dev/null || true
+              wait "$SERVER_PID" 2>/dev/null || true
+            fi
+            if [ "$EXIT_CODE" -ne 0 ] && [ -f "$LOG_FILE" ]; then
+              echo "::group::Next.js server logs on failure"
+              cat "$LOG_FILE"
+              echo "::endgroup::"
+            fi
+          }
+          trap cleanup EXIT
+
+          npm run start -- -H 127.0.0.1 -p 3000 > "$LOG_FILE" 2>&1 &
+          SERVER_PID=$!
+
+          READY=0
+          for i in $(seq 1 30); do
+            if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+              echo "::error::Next.js server exited prematurely during startup"
+              exit 1
+            fi
+            if curl -sf --max-time 2 http://127.0.0.1:3000/robots.txt > /dev/null; then
+              READY=1
+              break
+            fi
+            sleep 1
+          done
+
+          if [ "$READY" -ne 1 ]; then
+            echo "::error::Next.js server failed readiness probe within 30s"
+            exit 1
+          fi
+
+          node packages/seo-ci-gate/scripts/validate-seo.mjs \
+            --url "$SEO_TEST_URL" \
+            --mode local \
+            --allow-localhost \
+            --json-out seo-local-report.json \
+            --save-ssr ssr-local-snapshot.html
+
+      - name: Upload local SEO audit artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: seo-local-report-${{ github.run_id }}
+          path: |
+            seo-local-report.json
+            ssr-local-snapshot.html
+          retention-days: 7
+          if-no-files-found: warn

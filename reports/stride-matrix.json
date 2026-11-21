@@ -1,0 +1,484 @@
+{
+  "ok": true,
+  "timestamp": "2026-11-21T14:27:14.330Z",
+  "summary": {
+    "totalThreats": 15,
+    "mitigatedTotal": 15,
+    "openTotal": 0,
+    "criticalHighTotal": 15,
+    "criticalHighMitigated": 15,
+    "criticalHighOpen": 0,
+    "byCategory": {
+      "S": {
+        "total": 3,
+        "mitigated": 3,
+        "open": 0
+      },
+      "T": {
+        "total": 4,
+        "mitigated": 4,
+        "open": 0
+      },
+      "R": {
+        "total": 1,
+        "mitigated": 1,
+        "open": 0
+      },
+      "I": {
+        "total": 3,
+        "mitigated": 3,
+        "open": 0
+      },
+      "D": {
+        "total": 2,
+        "mitigated": 2,
+        "open": 0
+      },
+      "E": {
+        "total": 2,
+        "mitigated": 2,
+        "open": 0
+      }
+    }
+  },
+  "test_evidence": {
+    "exitCode": 0,
+    "testCaseCount": 83,
+    "suiteCount": 12,
+    "passedCount": 83,
+    "failedCount": 0
+  },
+  "threats": [
+    {
+      "threat_id": "STRIDE-S-01",
+      "category": "Spoofing",
+      "category_code": "S",
+      "surface": "GitHub Actions CI",
+      "severity": "CRITICAL",
+      "title": "Fork-PR spoofs validator script on deployment_status with bypass secrets in scope",
+      "control_file": ".github/workflows/seo-check-preview.yml",
+      "verified_by_test": "tests/workflow-security.test.mjs :: hardens seo-check-preview.yml against Fork-PR Pwn Requests",
+      "matched_tests": [
+        "hardens seo-check-preview.yml against Fork-PR Pwn Requests and includes sticky PR comment + commit status"
+      ],
+      "failed_tests": [],
+      "test_status": "PASS",
+      "static_checks": [
+        {
+          "label": "sparse-checkout pinned to default_branch (never deployment.sha)",
+          "pass": true
+        },
+        {
+          "label": "persist-credentials: false enforced on actions/checkout",
+          "pass": true
+        },
+        {
+          "label": "strict HTTPS target host allowlist (*.vercel.app / maganghub.kemnaker.go.id)",
+          "pass": true
+        }
+      ],
+      "status": "MITIGATED"
+    },
+    {
+      "threat_id": "STRIDE-S-02",
+      "category": "Spoofing",
+      "category_code": "S",
+      "surface": "Next.js SEO/GEO",
+      "severity": "HIGH",
+      "title": "Host / X-Forwarded-Host header poisoning hijacks canonical URLs or sitemap <loc>",
+      "control_file": "packages/nextjs-blueprint/lib/constants.ts, app/layout.metadata.ts, app/sitemap.ts, app/robots.ts",
+      "verified_by_test": "tests/stride-controls.test.mjs :: [STRIDE-S-02] pins canonical/sitemap origin",
+      "matched_tests": [
+        "[STRIDE-S-02] pins canonical/sitemap origin via resolvePinnedBaseUrl and refuses Host/env spoofing"
+      ],
+      "failed_tests": [],
+      "test_status": "PASS",
+      "static_checks": [
+        {
+          "label": "resolvePinnedBaseUrl() pins canonical HTTPS allowlist in constants.ts",
+          "pass": true
+        },
+        {
+          "label": "Zero raw Host / X-Forwarded-Host header reads across metadata, sitemap, robots (comment-stripped)",
+          "pass": true
+        },
+        {
+          "label": "Blocker #0 guard: root metadata/rootMetadata omits alternates.canonical (scoped to root declaration)",
+          "pass": true
+        },
+        {
+          "label": "app/sitemap.ts and lib/llms.ts invoke resolvePinnedBaseUrl()",
+          "pass": true
+        }
+      ],
+      "status": "MITIGATED"
+    },
+    {
+      "threat_id": "STRIDE-S-03",
+      "category": "Spoofing",
+      "category_code": "S",
+      "surface": "Google Indexing API",
+      "severity": "HIGH",
+      "title": "JWT claim tampering or forged OAuth2 service-account assertion",
+      "control_file": "packages/nextjs-blueprint/lib/google-indexing-api.ts",
+      "verified_by_test": "tests/indexing-api.test.mjs & tests/stride-controls.test.mjs :: RS256 crypto.verify + [STRIDE-S-03]",
+      "matched_tests": [
+        "generates an RS256 JWT whose signature verifies cryptographically against the RSA-2048 public key",
+        "[STRIDE-S-03] validates JWT iss/aud/exp claims and rejects malformed RS256 service account inputs"
+      ],
+      "failed_tests": [],
+      "test_status": "PASS",
+      "static_checks": [
+        {
+          "label": "Strict iss/aud/exp/iat validation + HTTPS audience guard in buildServiceAccountJwt()",
+          "pass": true
+        },
+        {
+          "label": "RSA-SHA256 signing via Node built-in node:crypto only",
+          "pass": true
+        }
+      ],
+      "status": "MITIGATED"
+    },
+    {
+      "threat_id": "STRIDE-T-01",
+      "category": "Tampering",
+      "category_code": "T",
+      "surface": "Next.js SEO/GEO",
+      "severity": "CRITICAL",
+      "title": "Stored XSS & </script> / U+2028 / U+2029 breakout via partner descriptionHtml in JSON-LD & SSR page",
+      "control_file": "packages/nextjs-blueprint/lib/job-schema.ts, components/seo/JobPostingJsonLd.tsx, app/magang-nasional/lowongan/[slug]/page.tsx",
+      "verified_by_test": "tests/fuzz-parsers.test.mjs & tests/stride-controls.test.mjs :: 250 XSS fuzz + [STRIDE-T-01]",
+      "matched_tests": [
+        "fuzzes HTML sanitizer & JSON-LD serializer across 280 XSS/script-breakout inputs",
+        "[STRIDE-T-01] blocks stored XSS, script breakout, and U+2028/U+2029 terminators"
+      ],
+      "failed_tests": [],
+      "test_status": "PASS",
+      "static_checks": [
+        {
+          "label": "Server-side allowlist HTML sanitizer strips scripts, event handlers & dangerous URIs",
+          "pass": true
+        },
+        {
+          "label": "serializeSafeJsonLd escapes <, >, &, U+2028, and U+2029 (job-schema.ts + lib/*seo*.ts)",
+          "pass": true
+        },
+        {
+          "label": "page.tsx sanitizes descriptionHtml before dangerouslySetInnerHTML",
+          "pass": true
+        }
+      ],
+      "status": "MITIGATED"
+    },
+    {
+      "threat_id": "STRIDE-T-02",
+      "category": "Tampering",
+      "category_code": "T",
+      "surface": "Next.js SEO/GEO",
+      "severity": "HIGH",
+      "title": "XML / CDATA injection via untrusted vacancy slug in sitemap.ts",
+      "control_file": "packages/nextjs-blueprint/app/sitemap.ts",
+      "verified_by_test": "tests/stride-controls.test.mjs :: [STRIDE-T-02] blocks XML/CDATA injection slugs",
+      "matched_tests": [
+        "[STRIDE-T-02] blocks XML/CDATA injection slugs and illegal control characters in sitemap.ts"
+      ],
+      "failed_tests": [],
+      "test_status": "PASS",
+      "static_checks": [
+        {
+          "label": "escapeXml() escapes XML entities and strips XML 1.0 illegal control chars",
+          "pass": true
+        },
+        {
+          "label": "Strict isValidVacancySlug() allowlist filters records before emitting <loc>",
+          "pass": true
+        }
+      ],
+      "status": "MITIGATED"
+    },
+    {
+      "threat_id": "STRIDE-T-03",
+      "category": "Tampering",
+      "category_code": "T",
+      "surface": "GEO / AI Feeds",
+      "severity": "HIGH",
+      "title": "Indirect Prompt Injection via partner vacancy descriptions/titles rendered to llms.txt & /ai/jobs.ndjson",
+      "control_file": "packages/nextjs-blueprint/lib/prompt-injection-guard.ts, lib/llms.ts, app/llms.txt/route.ts, app/ai/jobs.ndjson/route.ts",
+      "verified_by_test": "tests/fuzz-parsers.test.mjs (150 PI fuzz) & tests/stride-controls.test.mjs :: [STRIDE-T-03]",
+      "matched_tests": [
+        "fuzzes Indirect Prompt Injection guard across 160 adversarial GEO payloads (0 breakout, 0 control chars)",
+        "[STRIDE-T-03] neutralizes Indirect Prompt Injection in llms.txt and /ai/jobs.ndjson"
+      ],
+      "failed_tests": [],
+      "test_status": "PASS",
+      "static_checks": [
+        {
+          "label": "prompt-injection-guard.ts strips control/bidi/zero-width chars, caps field length & neutralizes delimiters/overrides",
+          "pass": true
+        },
+        {
+          "label": "llms.ts / app/llms.txt/route.ts sanitizes dynamic batch schedules",
+          "pass": true
+        },
+        {
+          "label": "app/ai/jobs.ndjson/route.ts sanitizes all partner fields & isolates strict single-line NDJSON",
+          "pass": true
+        },
+        {
+          "label": "GEO route handlers contain zero unfilled template placeholders (comment-stripped)",
+          "pass": true
+        }
+      ],
+      "status": "MITIGATED"
+    },
+    {
+      "threat_id": "STRIDE-T-04",
+      "category": "Tampering",
+      "category_code": "T",
+      "surface": "GitHub Actions CI",
+      "severity": "CRITICAL",
+      "title": "GitHub Actions shell script injection via untrusted ${{ github.event.* }} inside run: blocks",
+      "control_file": ".github/workflows/seo-check-preview.yml, .github/workflows/seo-check-local.yml",
+      "verified_by_test": "tests/workflow-security.test.mjs :: forbids ALL ${{ ... }} expression interpolation inside every run: block",
+      "matched_tests": [
+        "forbids ALL ${{ ... }} expression interpolation inside every run: block across all workflows"
+      ],
+      "failed_tests": [],
+      "test_status": "PASS",
+      "static_checks": [
+        {
+          "label": "0 ${{ ... }} expressions in any run: block in seo-check-preview.yml",
+          "pass": true
+        },
+        {
+          "label": "0 ${{ ... }} expressions in any run: block in seo-check-local.yml",
+          "pass": true
+        }
+      ],
+      "status": "MITIGATED"
+    },
+    {
+      "threat_id": "STRIDE-R-01",
+      "category": "Repudiation",
+      "category_code": "R",
+      "surface": "Google Indexing API & CI Gate",
+      "severity": "HIGH",
+      "title": "Missing structured audit trail & cryptographic digest for URL_DELETED/URL_UPDATED and CI gate failures",
+      "control_file": "packages/nextjs-blueprint/lib/google-indexing-api.ts, packages/seo-ci-gate/scripts/validate-seo.mjs",
+      "verified_by_test": "tests/stride-controls.test.mjs :: [STRIDE-R-01] emits structured JSON audit logs & SHA-256 digests",
+      "matched_tests": [
+        "[STRIDE-R-01] emits structured JSON audit logs & SHA-256 digests with zero secret leakage"
+      ],
+      "failed_tests": [],
+      "test_status": "PASS",
+      "static_checks": [
+        {
+          "label": "google-indexing-api.ts emits structured JSON IndexingAuditLogEntry with ISO timestamp + requestSha256",
+          "pass": true
+        },
+        {
+          "label": "validate-seo.mjs emits audit.{timestamp, deploymentSha, gateResults, reportSha256} without leaking secrets",
+          "pass": true
+        }
+      ],
+      "status": "MITIGATED"
+    },
+    {
+      "threat_id": "STRIDE-I-01",
+      "category": "Information Disclosure",
+      "category_code": "I",
+      "surface": "GitHub Actions CI & Validator",
+      "severity": "CRITICAL",
+      "title": "VERCEL_AUTOMATION_BYPASS_SECRET exfiltration via cross-origin redirect or unmasked error logs",
+      "control_file": "packages/seo-ci-gate/scripts/validate-seo.mjs, .github/workflows/seo-check-preview.yml",
+      "verified_by_test": "tests/e2e-http.test.mjs (0 bypass leakage) & tests/stride-controls.test.mjs :: [STRIDE-I-01]",
+      "matched_tests": [
+        "blocks 0 bypass secret leakage on cross-origin 302 redirect (Server A -> Server B)",
+        "[STRIDE-I-01] masks VERCEL_AUTOMATION_BYPASS_SECRET and Bearer tokens across error logs & JSON reports"
+      ],
+      "failed_tests": [],
+      "test_status": "PASS",
+      "static_checks": [
+        {
+          "label": "fetchUrl() pins x-vercel-protection-bypass strictly to currentUrl.origin === pinnedOrigin",
+          "pass": true
+        },
+        {
+          "label": "redactSecrets() masks VERCEL_AUTOMATION_BYPASS_SECRET & Bearer tokens in JSON reports and stderr",
+          "pass": true
+        }
+      ],
+      "status": "MITIGATED"
+    },
+    {
+      "threat_id": "STRIDE-I-02",
+      "category": "Information Disclosure",
+      "category_code": "I",
+      "surface": "Next.js SEO/GEO",
+      "severity": "HIGH",
+      "title": "Draft blog or DRAFT/INTERNAL vacancy metadata leak in generateMetadata(), sitemap.ts, or AI feeds",
+      "control_file": "packages/nextjs-blueprint/lib/blog-loader.ts, lib/get-lowongan.ts, app/magang-nasional/lowongan/[slug]/page.tsx, app/sitemap.ts, app/ai/jobs.ndjson/route.ts",
+      "verified_by_test": "tests/nextjs-blueprint.test.mjs (React.cache symmetric draft) & tests/stride-controls.test.mjs :: [STRIDE-I-02]",
+      "matched_tests": [
+        "deduplicates reads via React.cache() and enforces symmetric draft guard between metadata and page",
+        "[STRIDE-I-02] blocks DRAFT and INTERNAL vacancies symmetrically across loader, sitemap, and AI feeds"
+      ],
+      "failed_tests": [],
+      "test_status": "PASS",
+      "static_checks": [
+        {
+          "label": "blog-loader.ts enforces symmetric isBlogPostPubliclyVisible() inside React.cache() loader",
+          "pass": true
+        },
+        {
+          "label": "get-lowongan.ts, page.tsx, sitemap.ts & jobs.ndjson block DRAFT/INTERNAL symmetrically",
+          "pass": true
+        }
+      ],
+      "status": "MITIGATED"
+    },
+    {
+      "threat_id": "STRIDE-I-03",
+      "category": "Information Disclosure",
+      "category_code": "I",
+      "surface": "Next.js SEO/GEO",
+      "severity": "HIGH",
+      "title": "INTERNAL_API_URL or stack trace disclosure on HTTP 410 or 500 error responses",
+      "control_file": "packages/nextjs-blueprint/lib/get-lowongan.ts, middleware.ts, lib/gone-page.ts",
+      "verified_by_test": "tests/stride-controls.test.mjs :: [STRIDE-I-03] never leaks INTERNAL_API_URL or stack traces",
+      "matched_tests": [
+        "[STRIDE-I-03] never leaks INTERNAL_API_URL, Edge KV URL, or raw stack traces on errors or 410"
+      ],
+      "failed_tests": [],
+      "test_status": "PASS",
+      "static_checks": [
+        {
+          "label": "get-lowongan.ts throws generic error without interpolating raw upstream error/INTERNAL_API_URL",
+          "pass": true
+        },
+        {
+          "label": "middleware.ts & gone-page.ts return generic 410 responses with HTML-escaped slug and zero stack traces",
+          "pass": true
+        }
+      ],
+      "status": "MITIGATED"
+    },
+    {
+      "threat_id": "STRIDE-D-01",
+      "category": "Denial of Service",
+      "category_code": "D",
+      "surface": "Next.js SEO/GEO & CI Gate",
+      "severity": "HIGH",
+      "title": "ReDoS in HTML/XML/slug parsers, sitemap thundering herd, or middleware cache-busting OOM flood",
+      "control_file": "packages/nextjs-blueprint/lib/job-schema.ts, app/sitemap.ts, middleware.ts, packages/seo-ci-gate/scripts/validate-seo.mjs",
+      "verified_by_test": "tests/fuzz-parsers.test.mjs (50KB <15ms), tests/stride-controls.test.mjs ([STRIDE-D-01]) & reports/perf-stress-report.json",
+      "matched_tests": [
+        "defeats 50 KB ReDoS pathological strings across HTML, XML, sanitizer & slug parsers (< 15ms hard limit)",
+        "[STRIDE-D-01] enforces bounded Edge LRU cache under cache-busting floods and singleflight coalescing in sitemap.ts"
+      ],
+      "failed_tests": [],
+      "test_status": "PASS",
+      "static_checks": [
+        {
+          "label": "Linear-time O(N) HTML/XML scanners in job-schema.ts and validate-seo.mjs",
+          "pass": true
+        },
+        {
+          "label": "middleware.ts enforces bounded MAX_EDGE_CACHE_ENTRIES LRU cap & 400ms AbortSignal.timeout",
+          "pass": true
+        },
+        {
+          "label": "sitemap.ts enforces 50,000 URL/shard cap & singleflight coalescing",
+          "pass": true
+        },
+        {
+          "label": "Phase 2.6 perf-stress-report.json passed all Hard SLA gates (p99 < 50ms, 0% error)",
+          "pass": true
+        }
+      ],
+      "status": "MITIGATED"
+    },
+    {
+      "threat_id": "STRIDE-D-02",
+      "category": "Denial of Service",
+      "category_code": "D",
+      "surface": "Google Indexing API",
+      "severity": "HIGH",
+      "title": "Google Indexing API daily quota exhaustion (200/day) via bulk updates or webhook retry storms",
+      "control_file": "packages/nextjs-blueprint/lib/google-indexing-api.ts",
+      "verified_by_test": "tests/indexing-api.test.mjs :: daily quota limit, dedup & idempotency TTL",
+      "matched_tests": [
+        "enforces daily quota limit and deduplicates input URLs",
+        "suppresses duplicate notifications within idempotency TTL and allows resend after expiry"
+      ],
+      "failed_tests": [],
+      "test_status": "PASS",
+      "static_checks": [
+        {
+          "label": "Default 200 req/day quota cap + URL deduplication + skippedQuota partition",
+          "pass": true
+        },
+        {
+          "label": "TTL idempotency cache suppresses duplicate webhook pings",
+          "pass": true
+        }
+      ],
+      "status": "MITIGATED"
+    },
+    {
+      "threat_id": "STRIDE-E-01",
+      "category": "Elevation of Privilege",
+      "category_code": "E",
+      "surface": "GitHub Actions CI & Validator",
+      "severity": "CRITICAL",
+      "title": "Over-privileged GITHUB_TOKEN or SSRF to 169.254.169.254 / RFC1918 / obfuscated IP literals",
+      "control_file": ".github/workflows/seo-check-preview.yml, .github/workflows/seo-check-local.yml, packages/seo-ci-gate/scripts/validate-seo.mjs",
+      "verified_by_test": "tests/workflow-security.test.mjs & tests/fuzz-parsers.test.mjs (250 SSRF vectors)",
+      "matched_tests": [
+        "fuzzes SSRF host blocker across 250+ (280) IPv4/IPv6/NAT64/translated/local/userinfo bypass vectors (0 bypasses)",
+        "enforces minimal permissions, concurrency cancellation, timeout-minutes, and pinned Node 24 actions across all workflows"
+      ],
+      "failed_tests": [],
+      "test_status": "PASS",
+      "static_checks": [
+        {
+          "label": "Minimal scoped permissions in both GitHub Actions workflows",
+          "pass": true
+        },
+        {
+          "label": "validate-seo.mjs blocks RFC1918, 192.0.0/24, 198.18/15, .local, userinfo, cloud metadata, IPv4-mapped/translated & NAT64",
+          "pass": true
+        }
+      ],
+      "status": "MITIGATED"
+    },
+    {
+      "threat_id": "STRIDE-E-02",
+      "category": "Elevation of Privilege",
+      "category_code": "E",
+      "surface": "Next.js SEO/GEO",
+      "severity": "HIGH",
+      "title": "Path traversal or hub route collision (../dashboard, %2e%2e, /kota/jakarta) in extractJobDetailSlug",
+      "control_file": "packages/nextjs-blueprint/lib/job-lifecycle.ts, middleware.ts",
+      "verified_by_test": "tests/stride-controls.test.mjs :: [STRIDE-E-02] enforces strict [a-z0-9-]+ allowlist",
+      "matched_tests": [
+        "[STRIDE-E-02] enforces strict [a-z0-9-]+ allowlist blocking path traversal, encoded dots, and non-slug chars"
+      ],
+      "failed_tests": [],
+      "test_status": "PASS",
+      "static_checks": [
+        {
+          "label": "Strict [a-z0-9-]+ allowlist regex (STRICT_SLUG_RE) applied after safe decodeURIComponent",
+          "pass": true
+        },
+        {
+          "label": "middleware.ts delegates slug extraction to extractJobDetailSlug() before Edge KV lookup",
+          "pass": true
+        }
+      ],
+      "status": "MITIGATED"
+    }
+  ],
+  "report_sha256": "15edf20e4947c2d6fe3c0fabac914e000f2e32949ec19d423e7ca3d45b8fe739"
+}

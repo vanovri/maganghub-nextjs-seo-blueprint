@@ -1,0 +1,39 @@
+name: Blueprint CI Verification
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Typecheck, 83 Tests, Fuzz & STRIDE Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js 24 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Install devDependencies
+        run: npm ci
+
+      - name: Run full verification suite and STRIDE audit
+        run: |
+          set -euo pipefail
+          npm run test:all
+          npm run security:stride
